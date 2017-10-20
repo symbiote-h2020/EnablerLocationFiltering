@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+        <title>Configuration</title>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+        <script src="http://code.gijgo.com/1.5.1/js/gijgo.js" type="text/javascript"></script>
+        <link href="http://code.gijgo.com/1.5.1/css/gijgo.css" rel="stylesheet" type="text/css" />
+        <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous"/>
+        <!--<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous" />-->
+</head>
+<body>
+    <div id="body_body" style="height: 100%;width: 100%;padding: 15px;margin: 15px;">
+        <div>
+            <button onclick="getLocation()">Get all locations</button>
+        </div>
+        <div style="display: none">
+            <button onclick="deleteLocation()">Delete selected locations</button>
+        </div>
+        <div class="container-fluid">
+            <div id="tree"></div>
+        </div>
+    </div>
+    
+    <script type="text/javascript">
+        var tree;
+            $(document).ready(function () {
+                tree = $('#tree').tree({
+                    uiLibrary: 'bootstrap',
+                    dataSource: '/Locations/Get',
+                    primaryKey: 'id',
+                    dragAndDrop: true,
+                    //checkboxes: true,
+                    dataBound: function (e) {
+                        $('#tree').tree().expandAll();
+                    }
+                });
+                
+                tree.on('nodeDrop', function (e, id, parentId, orderNumber) {
+                    var params = { id: id, parentId: parentId, orderNumber: orderNumber };
+                    $.ajax({ url: '/Locations/ChangeNodePosition', data: params, method: 'POST' })
+                        .fail(function () {
+                            alert('Failed to save.');
+                            return false;
+                        });
+                });
+            });
+            
+            function getLocation(){
+                attend();
+                $.ajax({ url: '/Locations/GetAll', method: 'GET' })
+                        .done(function (response) {
+                            tree.render(response);
+                            attendRemove();
+                        })
+                        .fail(function () {
+                            alert('Failed to save.');
+                            attendRemove();
+                        });
+            }
+            
+            function deleteLocation(){
+                attend();
+                var checkedIds = tree.getCheckedNodes();
+                var params = {ids: checkedIds};
+                $.ajax({ url: '/Locations/Delete', data: params, method: 'POST' })
+                        .done(function (response) {
+                            tree.render(response);
+                            attendRemove();
+                        })
+                        .fail(function () {
+                            alert('Failed to save.');
+                            attendRemove();
+                        });
+            }
+            
+            function attend() {
+                document.getElementById("body_body").style.cursor = "wait";
+            }
+            function attendRemove() {
+                document.getElementById("body_body").style.cursor = "default";
+            }
+    </script>
+    </body>
+</html>
