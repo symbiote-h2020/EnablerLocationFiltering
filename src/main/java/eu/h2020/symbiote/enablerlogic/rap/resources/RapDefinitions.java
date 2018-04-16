@@ -11,10 +11,10 @@ package eu.h2020.symbiote.enablerlogic.rap.resources;
  */
 public class RapDefinitions {
     public static final String      PLUGIN_REGISTRATION_EXCHANGE_OUT = "symbIoTe.rapPluginExchange";
-    public static final String      PLUGIN_REGISTRATION_KEY = "symbIoTe.rapPluginExchange.add-plugin";
+    public static final String      PLUGIN_REGISTRATION_KEY = "symbIoTe.rapPluginExchange.add-plugin"; // TODO This key is used for registration and unregistration. Its value should be changed to reflect that.
 
     public static final String      PLUGIN_EXCHANGE_IN = "plugin-exchange";
     
-//    public static final String      PLUGIN_NOTIFICATION_EXCHANGE_OUT = "symbIoTe.rapPluginExchange-notification";
-//    public static final String      PLUGIN_NOTIFICATION_KEY = "symbIoTe.rapPluginExchange.plugin-notification";
+    public static final String      PLUGIN_NOTIFICATION_EXCHANGE_OUT = "symbIoTe.rapPluginExchange-notification";
+    public static final String      PLUGIN_NOTIFICATION_KEY = "symbIoTe.rapPluginExchange.plugin-notification";
 }

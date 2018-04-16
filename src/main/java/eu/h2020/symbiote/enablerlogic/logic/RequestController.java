@@ -5,22 +5,27 @@
  */
 package eu.h2020.symbiote.enablerlogic.logic;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.h2020.symbiote.core.ci.QueryResourceResult;
 import eu.h2020.symbiote.core.ci.QueryResponse;
 import eu.h2020.symbiote.core.internal.CoreQueryRequest;
 import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerAcquisitionStartResponse;
 import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerTaskInfoRequest;
+import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerTaskInfoResponse;
 import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerTasksStatus;
 import eu.h2020.symbiote.enablerlogic.EnablerLogic;
 import eu.h2020.symbiote.enablerlogic.InterpolatorLogic;
 import eu.h2020.symbiote.enablerlogic.db.Location;
 import eu.h2020.symbiote.enablerlogic.db.LocationRepository;
+import static eu.h2020.symbiote.enablerlogic.logic.ConfigureController.createResourceManagerTaskInfoRequest;
 import eu.h2020.symbiote.enablerlogic.models.LocationGraphic;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +44,8 @@ import org.springframework.web.client.RestTemplate;
 @RestController
 @RequestMapping("locationFilter")
 public class RequestController {
+    
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(RequestController.class);
     
     @Autowired
     private EnablerLogic enablerLogic;
@@ -86,10 +93,10 @@ public class RequestController {
                 locationNameAccepted.add(l.getLocationName());
             }
         } catch (Exception ex) {
+            log.error(ex.toString(),ex);
             Logger.getLogger(RequestController.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
-        List<QueryResourceResult> qrrList = privateCallResources();
+        List<QueryResourceResult> qrrList = callResourceManager();
         for(QueryResourceResult qrr: qrrList){
             if(locationNameAccepted.contains(qrr.getLocationName()))
                 qrrListResult.add(qrr);
@@ -98,15 +105,26 @@ public class RequestController {
     }
     
     
-    private static List<QueryResourceResult> privateCallResources(){
+    private List<QueryResourceResult> callResourceManager() {
         List<QueryResourceResult> qrr = new ArrayList<>();
-        RestTemplate restTemplate = new RestTemplate();
-        restTemplate.getMessageConverters().add(new MappingJackson2HttpMessageConverter());
-        restTemplate.getMessageConverters().add(new StringHttpMessageConverter());
-        String url = "https://symbiote-dev.man.poznan.pl:8100/coreInterface/v1/query?platform_name=OpenIoTZg";
-        QueryResponse queryResponse = restTemplate.getForObject(url, QueryResponse.class);
-        if(queryResponse != null){
-            qrr = queryResponse.getResources();
+        String taskId = "someId";
+        ResourceManagerTaskInfoRequest request = ConfigureController.createResourceManagerTaskInfoRequest(taskId);
+        
+        ResourceManagerAcquisitionStartResponse response = enablerLogic.queryResourceManager(request);
+
+        try {
+            log.info("querying fixed resources: {}", new ObjectMapper().writeValueAsString(response));
+        } catch (JsonProcessingException e) {
+            log.error("Problem with deserializing ResourceManagerAcquisitionStartResponse", e);
+        }
+        
+        if(response != null){
+            String message = response.getMessage();
+            List<ResourceManagerTaskInfoResponse> infoResponseList = response.getTasks();
+            for(ResourceManagerTaskInfoResponse infoResponse: infoResponseList){
+                if(infoResponse.getTaskId().equals(taskId))
+                    qrr = infoResponse.getResourceDescriptions();
+            }
         }
         return qrr;
     }

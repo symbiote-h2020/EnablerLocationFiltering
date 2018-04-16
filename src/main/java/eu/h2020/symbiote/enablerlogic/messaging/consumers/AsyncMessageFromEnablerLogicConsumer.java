@@ -16,6 +16,7 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.stereotype.Component;
 
+import eu.h2020.symbiote.enablerlogic.messaging.LoggingTrimHelper;
 import eu.h2020.symbiote.enablerlogic.messaging.WrongRequestException;
 
 @Component
@@ -42,12 +43,12 @@ public class AsyncMessageFromEnablerLogicConsumer {
 
     @RabbitListener(bindings = @QueueBinding(
         value = @Queue,
-        exchange = @Exchange(value = "#{enablerLogicProperties.enablerLogicExchange.name}", type = "topic"),
+        exchange = @Exchange(value = "#{enablerLogicProperties.enablerLogicExchange.name}", type = "topic", ignoreDeclarationExceptions = "true", durable="false"),
         key = "#{enablerLogicProperties.key.enablerLogic.asyncMessageToEnablerLogic}.#{enablerLogicProperties.enablerName}"
     ))
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public void receivedAsyncMessage(Message msg) throws IOException {
-        LOG.info("Consumer receivedAsyncMessage: " + msg);
+        LOG.info("Consumer receivedAsyncMessage: " + LoggingTrimHelper.logMsg(msg));
 
         Object request = messageConverter.fromMessage(msg);
         String className = request.getClass().getName();

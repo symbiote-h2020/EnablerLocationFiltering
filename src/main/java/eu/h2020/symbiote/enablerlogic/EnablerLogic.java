@@ -19,6 +19,7 @@ import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerAcquisitionStart
 import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerTaskInfoRequest;
 import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerUpdateRequest;
 import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerUpdateResponse;
+import eu.h2020.symbiote.enablerlogic.messaging.LoggingTrimHelper;
 import eu.h2020.symbiote.enablerlogic.messaging.RabbitManager;
 import eu.h2020.symbiote.enablerlogic.messaging.WrongResponseException;
 import eu.h2020.symbiote.enablerlogic.messaging.consumers.AsyncMessageFromEnablerLogicConsumer;
@@ -121,7 +122,7 @@ public class EnablerLogic {
 			throw new IllegalStateException("Props may not be null");
     	
         for(ResourceManagerTaskInfoRequest request: requests) {
-            LOG.info("sending message to ResourceManager: {}", request);
+            LOG.info("sending message to ResourceManager: {}", LoggingTrimHelper.logToString(request));
         }
 
         ResourceManagerAcquisitionStartRequest request = new ResourceManagerAcquisitionStartRequest();
@@ -136,6 +137,37 @@ public class EnablerLogic {
         return response;
     }
     
+    /**
+     * Queries Resource Manager component. It is blocking until response received or timeout.
+     * It starts acquisition.
+     *
+     * In the case of timeout the null is returned.
+     *
+     * @param timeout timeout in milliseconds
+     * @param requests send to Resource Manager component
+     * @return response form Resource Manager component or null in case of timeout
+     */
+    public ResourceManagerAcquisitionStartResponse queryResourceManager(int timeout, ResourceManagerTaskInfoRequest...requests) {
+        
+        if (props==null)
+            throw new IllegalStateException("Props may not be null");
+        
+        for(ResourceManagerTaskInfoRequest request: requests) {
+            LOG.info("sending message to ResourceManager: {}", LoggingTrimHelper.logToString(request));
+        }
+
+        ResourceManagerAcquisitionStartRequest request = new ResourceManagerAcquisitionStartRequest();
+        request.setTasks(Arrays.asList(requests));
+
+        ResourceManagerAcquisitionStartResponse response = (ResourceManagerAcquisitionStartResponse)
+            rabbitManager.sendRpcMessage(props.getExchange().getResourceManager().getName(),
+                props.getKey().getResourceManager().getStartDataAcquisition(),
+                request, timeout);
+
+        LOG.info("Received resourceIds from ResourceManager");
+        return response;
+    }
+
     /**
      * Sends to Resource Manager to cancel task for acquisition. It is blocking until response received or timeout.
      *
@@ -152,6 +184,23 @@ public class EnablerLogic {
     }
     
     /**
+     * Sends to Resource Manager to cancel task for acquisition. It is blocking until response received or timeout.
+     *
+     * In the case of timeout the null is returned.
+     *
+     * @param request for canceling task
+     * @param timeout in milliseconds
+     * @return response of task cancellation
+     */
+    public CancelTaskResponse cancelTask(CancelTaskRequest request, int timeout) {
+        return (CancelTaskResponse) rabbitManager.sendRpcMessage(
+                props.getExchange().getResourceManager().getName(), 
+                props.getKey().getResourceManager().getCancelTask(), 
+                request, 
+                timeout);
+    }
+    
+    /**
      * Sends to Resource Manager to update acquisition task. It is blocking until response received or timeout.
      *
      * In the case of timeout the null is returned.
@@ -164,6 +213,23 @@ public class EnablerLogic {
                 props.getExchange().getResourceManager().getName(),
                 props.getKey().getResourceManager().getUpdateTask(),
                 request);
+    }
+
+    /**
+     * Sends to Resource Manager to update acquisition task. It is blocking until response received or timeout.
+     *
+     * In the case of timeout the null is returned.
+     * 
+     * @param request updated request
+     * @param timeout in milliseconds
+     * @return response of task update
+     */
+    public ResourceManagerUpdateResponse updateTask(ResourceManagerUpdateRequest request, int timeout) {
+        return (ResourceManagerUpdateResponse) rabbitManager.sendRpcMessage(
+                props.getExchange().getResourceManager().getName(),
+                props.getKey().getResourceManager().getUpdateTask(),
+                request,
+                timeout);
     }
 
     /**
@@ -207,6 +273,33 @@ public class EnablerLogic {
         throw new WrongResponseException(response);
     }
 
+    /**
+     * Sends synchronous message to another Enabler Logic component.
+     * @param enablerName the name of another Enabler Logic component
+     * @param msg message send to Enabler Logic component
+     * @param clazz class of response message
+     * @param <O> type of response message
+     * @param timeout in milliseconds
+     * @return response message or null when timeout
+     *
+     * @throws WrongResponseException when the response message can not be casted to clazz.
+     */
+    @SuppressWarnings("unchecked")
+    public <O> O sendSyncMessageToEnablerLogic(String enablerName, Object msg, Class<O> clazz, int timeout) {
+        Object response = rabbitManager.sendRpcMessage(props.getEnablerLogicExchange().getName(),
+            generateSyncEnablerLogicRoutingKey(enablerName),
+            msg,
+            timeout);
+
+        if(response == null)
+            return null;
+
+        if(clazz.isInstance(response))
+            return (O) response;
+
+        throw new WrongResponseException(response);
+    }
+
     private String generateSyncEnablerLogicRoutingKey(String enablerName) {
         return props.getKey().getEnablerLogic().getSyncMessageToEnablerLogic() + "." +
             enablerName;
@@ -236,4 +329,18 @@ public class EnablerLogic {
                 info);
     }
     
+    /**
+     * Send request to Platform Proxy to read resource and return result.
+     * 
+     * @param info requested resource info
+     * @param timount in milliseconds
+     * @return reading result
+     */
+    public EnablerLogicDataAppearedMessage readResource(PlatformProxyTaskInfo info, int timeout) {
+        return (EnablerLogicDataAppearedMessage) rabbitManager.sendRpcMessage(
+                props.getExchange().getEnablerPlatformProxy().getName(),
+                props.getKey().getEnablerPlatformProxy().getSingleReadRequested(),
+                info,
+                timeout);
+    }
 }

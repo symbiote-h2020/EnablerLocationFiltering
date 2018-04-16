@@ -76,14 +76,30 @@ public class EnablerLogicConfiguration implements ApplicationContextAware, Smart
         LOG.debug("START");
         new Thread(() -> {
             // wait for discovery client
-            List<ServiceInstance> si = discoveryClient.getInstances("RegistrationHandler");
-            if(si.isEmpty()) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                }
-                si = discoveryClient.getInstances("RegistrationHandler");
-            }
+            discoveryClient.getServices();
+//            List<ServiceInstance> si = discoveryClient.getInstances("RegistrationHandler");
+//            int counter = 0;
+//            while(si.isEmpty()) {
+//                if((counter % 10) == 0)
+//                   LOG.debug("Waiting for RegistrationHandler in Eureka. counter={}", counter);
+//                try {
+//                    Thread.sleep(100);
+//                } catch (InterruptedException e) {
+//                }
+//                si = discoveryClient.getInstances("RegistrationHandler");
+//                if(counter >= 3000) {
+//                    LOG.error("Waiting maximal time of 5min for RegistartionHandler in Eureka");
+//                    return;
+//                }
+//            }
+//            
+//            LOG.debug("RegistrationHandler at {}", si.get(0).getUri());
+            
+            // Wait for other things to start up.
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+            }            
             
             processingLogic.forEach((pl) -> pl.initialization(enablerLogic));
             running = true;

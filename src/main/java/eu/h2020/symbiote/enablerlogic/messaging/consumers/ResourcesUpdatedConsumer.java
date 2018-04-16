@@ -12,6 +12,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import eu.h2020.symbiote.enabler.messaging.model.NotEnoughResourcesAvailable;
 import eu.h2020.symbiote.enabler.messaging.model.ResourcesUpdated;
 import eu.h2020.symbiote.enablerlogic.ProcessingLogic;
+import eu.h2020.symbiote.enablerlogic.messaging.LoggingTrimHelper;
 
 public class ResourcesUpdatedConsumer {
     private static final Logger LOG = LoggerFactory.getLogger(ResourcesUpdatedConsumer.class);
@@ -24,11 +25,11 @@ public class ResourcesUpdatedConsumer {
 
     @RabbitListener(bindings = @QueueBinding(
         value = @Queue,
-        exchange = @Exchange(value = "#{enablerLogicProperties.enablerLogicExchange.name}", type = "topic"),
+        exchange = @Exchange(value = "#{enablerLogicProperties.enablerLogicExchange.name}", type = "topic", ignoreDeclarationExceptions = "true", durable="false"),
         key = "#{enablerLogicProperties.key.enablerLogic.resourcesUpdated}"
     ))
     public void dataAppeared(ResourcesUpdated resourcesUpdatedMessage) throws IOException {
-        LOG.info("Consumer ResourcesUpdated message: " + resourcesUpdatedMessage);
+        LOG.info("Consumer ResourcesUpdated message: " + LoggingTrimHelper.logToString(resourcesUpdatedMessage));
         processingLogic.resourcesUpdated(resourcesUpdatedMessage);
     }
 
