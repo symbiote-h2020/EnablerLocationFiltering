@@ -89,8 +89,8 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter-thymeleaf")
     compile("org.springframework.boot:spring-boot-devtools")
 
-    //compile('eu.h2020.symbiote:SymbIoTeLibraries:1.0.1-SNAPSHOT') { changing = true }
-    compile('com.github.symbiote-h2020:SymbIoTeLibraries:develop-SNAPSHOT') { changing = true }
+    //compile('com.github.symbiote-h2020:SymbIoTeLibraries:develop-SNAPSHOT') { changing = true }
+    compile('com.github.symbiote-h2020:SymbIoTeLibraries:4.+') { }
     
     compileOnly('org.projectlombok:lombok')
 
@@ -154,7 +154,7 @@ check.dependsOn(jacocoTestReport)
 task integrationTest(type: Test) {
     jacoco {
       destinationFile = file("$buildDir/jacoco/integrationTest.exec")
-      classDumpDir = file("$buildDir/build/classes/integrationTest")
+      //classDumpDir = file("$buildDir/build/classes/integrationTest")
       includes = ["eu.*"]
    }
 
@@ -173,7 +173,7 @@ task allTestReport(type: TestReport) {
 test {
     jacoco {
         destinationFile = file("$buildDir/jacoco/test.exec")
-        classDumpDir = file("$buildDir/build/classes/test")
+        //classDumpDir = file("$buildDir/build/classes/test")
     }
 }
 
@@ -198,7 +198,7 @@ jacocoIntegrationTestReport.dependsOn integrationTest
 check.dependsOn jacocoIntegrationTestReport
 
 // all tests reporting
-/*
+
 task jacocoAllTestReport(type: JacocoReport) {
     group = "Reporting"
     description = "Generate Jacoco all test coverage reports"
@@ -218,7 +218,7 @@ task jacocoAllTestReport(type: JacocoReport) {
 }
 jacocoAllTestReport.dependsOn test, integrationTest
 check.dependsOn jacocoAllTestReport
-*/
+
 
 // reports for integration tests in different directory
 tasks.withType(Test) {
