@@ -16,6 +16,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import eu.h2020.symbiote.enabler.messaging.model.NotEnoughResourcesAvailable;
+import eu.h2020.symbiote.enablerlogic.EmbeddedRabbitFixture;
 import eu.h2020.symbiote.enablerlogic.ProcessingLogicAdapter;
 import eu.h2020.symbiote.enablerlogic.messaging.properties.EnablerLogicProperties;
 import eu.h2020.symbiote.enablerlogic.messaging.properties.ExchangeProperties;

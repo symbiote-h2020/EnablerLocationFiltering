@@ -20,6 +20,6 @@ public class WrongRequestExceptionTest {
         String exceptionMessage = exception.getMessage();
 
         //then
-        assertThat(exceptionMessage).isEqualTo("message {\"requestClassName\":\"java.lang.String\",\"request\":\"request object\"}");
+        assertThat(exceptionMessage).isEqualTo("message {\"requestClassName\":\"java.lang.String\",\"request\":\"\\\"request object\\\"\"}");
     }
 }

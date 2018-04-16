@@ -6,6 +6,9 @@ import static org.junit.Assert.assertNotNull;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -30,8 +33,8 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.rabbitmq.client.Channel;
 
+import eu.h2020.symbiote.enablerlogic.EmbeddedRabbitFixture;
 import eu.h2020.symbiote.enablerlogic.messaging.RabbitManager;
-import eu.h2020.symbiote.enablerlogic.messaging.consumers.EmbeddedRabbitFixture;
 import eu.h2020.symbiote.enablerlogic.messaging.consumers.TestingRabbitConfig;
 import eu.h2020.symbiote.enablerlogic.messaging.properties.EnablerLogicProperties;
 import eu.h2020.symbiote.enablerlogic.messaging.properties.ExchangeProperties;
@@ -212,4 +215,49 @@ public class RabbitManagerSendingTests extends EmbeddedRabbitFixture {
         assertThat(respObject.getName()).isEqualTo("sponge bob");
         assertThat(respObject.getAge()).isEqualTo(18);
     }
+    
+    @Test
+    public void sendingRPCwithoutResponse_shouldTimeout() throws Exception {
+        // given
+        ModelObject sendObject = new ModelObject("bob", 17);
+        long startTime = System.currentTimeMillis();
+        // when
+        
+        Object respObject = rabbitManager.sendRpcMessage(EXCHANGE_NAME, RECEIVING_ROUTING_KEY, sendObject, 5000);
+        long endTime = System.currentTimeMillis();
+
+        assertThat(respObject).isNull();
+        assertThat(endTime - startTime).isBetween(5000L, 5500L);
+    }
+
+    @Test
+    public void sending2RPCcallsWithoutResponse_shouldTimeoutWithDifferentTImes() throws Exception {
+        // given
+        ModelObject sendObject = new ModelObject("bob", 17);
+        AtomicLong delay1 = new AtomicLong(0);
+        AtomicLong delay2 = new AtomicLong(0);
+        CountDownLatch latch = new CountDownLatch(2);
+        
+        // when
+        new Thread(() -> {
+            long startTime = System.currentTimeMillis();
+            rabbitManager.sendRpcMessage(EXCHANGE_NAME, RECEIVING_ROUTING_KEY, sendObject, 5000);
+            long endTime = System.currentTimeMillis();
+            delay1.set(endTime - startTime);
+            latch.countDown();
+        }).start();
+        
+        new Thread(() -> {
+            long startTime = System.currentTimeMillis();
+            rabbitManager.sendRpcMessage(EXCHANGE_NAME, RECEIVING_ROUTING_KEY, sendObject, 3000);
+            long endTime = System.currentTimeMillis();
+            delay2.set(endTime - startTime);
+            latch.countDown();
+        }).start();
+        
+        latch.await(11000, TimeUnit.MILLISECONDS);
+        assertThat(delay1.get()).isBetween(5000L, 5500L);
+        assertThat(delay2.get()).isBetween(3000L, 3500L);
+    }
+
 }

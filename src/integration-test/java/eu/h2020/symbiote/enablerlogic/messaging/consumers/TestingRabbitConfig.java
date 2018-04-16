@@ -42,7 +42,9 @@ public class TestingRabbitConfig {
 
     @Bean
     public RabbitAdmin amqpAdmin(ConnectionFactory connectionFactory) {
-        return new RabbitAdmin(connectionFactory);
+        RabbitAdmin rabbitAdmin = new RabbitAdmin(connectionFactory);
+        rabbitAdmin.setIgnoreDeclarationExceptions(true);
+        return rabbitAdmin;
     }
 
     @Bean

@@ -1,4 +1,4 @@
-package eu.h2020.symbiote.enablerlogic.messaging.consumers;
+package eu.h2020.symbiote.enablerlogic;
 
 import java.io.File;
 import java.io.IOException;

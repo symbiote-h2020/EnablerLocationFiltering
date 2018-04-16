@@ -17,6 +17,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import eu.h2020.symbiote.enabler.messaging.model.EnablerLogicDataAppearedMessage;
 import eu.h2020.symbiote.enabler.messaging.model.NotEnoughResourcesAvailable;
+import eu.h2020.symbiote.enablerlogic.EmbeddedRabbitFixture;
 import eu.h2020.symbiote.enablerlogic.EnablerLogic;
 import eu.h2020.symbiote.enablerlogic.ProcessingLogic;
 import eu.h2020.symbiote.enablerlogic.ProcessingLogicAdapter;

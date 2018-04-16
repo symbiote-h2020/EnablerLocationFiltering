@@ -3,18 +3,24 @@ package eu.h2020.symbiote.enablerlogic.messaging;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutionException;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.AsyncRabbitTemplate;
+import org.springframework.amqp.rabbit.AsyncRabbitTemplate.RabbitConverterFuture;
+import org.springframework.amqp.rabbit.AsyncRabbitTemplate.RabbitMessageFuture;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 
@@ -25,12 +31,18 @@ public class RabbitManagerTests {
 
     @Mock
     private RabbitTemplate rabbitTemplate;
+    
+    @Mock 
+    AsyncRabbitTemplate asyncRabbitTemplate;
+    
+    @Mock
+    RabbitConverterFuture<Object> future;
 
     private RabbitManager rabbitManager;
 
     @Before
     public void setup() {
-        rabbitManager = new RabbitManager(rabbitTemplate);
+        rabbitManager = new RabbitManager(rabbitTemplate, asyncRabbitTemplate);
     }
 
     @Test
@@ -73,13 +85,15 @@ public class RabbitManagerTests {
         String expectedResult = "result";
         Message resultMessage = new Message(expectedResult.getBytes(StandardCharsets.UTF_8), null);
 
-        when(rabbitTemplate.sendAndReceive(eq(exchange), eq(key), any())).thenReturn(resultMessage);
+        RabbitMessageFuture messageFuture = Mockito.mock(RabbitMessageFuture.class);
+        when(asyncRabbitTemplate.sendAndReceive(eq(exchange), eq(key), any())).thenReturn(messageFuture);
+        when(messageFuture.get()).thenReturn(resultMessage);
 
         // when
         String result = rabbitManager.sendRpcMessage(exchange, key, "m");
 
         // then
-        verify(rabbitTemplate).sendAndReceive(eq(exchange), eq(key), messageCaptor.capture());
+        verify(asyncRabbitTemplate).sendAndReceive(eq(exchange), eq(key), messageCaptor.capture());
         Message sendMessage = messageCaptor.getValue();
         assertThat(sendMessage.getBody()).isEqualTo("m".getBytes(StandardCharsets.UTF_8));
         assertThat(sendMessage.getMessageProperties().getContentType()).isEqualTo("plain/text");
@@ -93,13 +107,15 @@ public class RabbitManagerTests {
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         String exchange = "e";
         String key = "k";
-        when(rabbitTemplate.sendAndReceive(eq(exchange), eq(key), any())).thenReturn(null);
+        RabbitMessageFuture rabbitMessageFuture = Mockito.mock(RabbitMessageFuture.class);
+        when(asyncRabbitTemplate.sendAndReceive(eq(exchange), eq(key), any())).thenReturn(rabbitMessageFuture);
+        when(rabbitMessageFuture.get()).thenThrow(new InterruptedException("timeout"));
 
         // when
         String result = rabbitManager.sendRpcMessage(exchange, key, "m");
 
         // then
-        verify(rabbitTemplate).sendAndReceive(eq(exchange), eq(key), messageCaptor.capture());
+        verify(asyncRabbitTemplate).sendAndReceive(eq(exchange), eq(key), messageCaptor.capture());
         Message sendMessage = messageCaptor.getValue();
         assertThat(sendMessage.getBody()).isEqualTo("m".getBytes(StandardCharsets.UTF_8));
         assertThat(sendMessage.getMessageProperties().getContentType()).isEqualTo("plain/text");
@@ -117,23 +133,23 @@ public class RabbitManagerTests {
         String key = "k";
         TestObject sendObject = new TestObject();
         TestObject resultObject = new TestObject();
-
-        when(rabbitTemplate.convertSendAndReceive(
+        RabbitConverterFuture<Object> future = Mockito.mock(RabbitConverterFuture.class);
+        
+        when(asyncRabbitTemplate.convertSendAndReceive(
             eq(exchange),
             eq(key),
-            any(TestObject.class),
-            any(CorrelationData.class))
-        ).thenReturn(resultObject);
+            any(TestObject.class))
+        ).thenReturn(future);
+        when(future.get()).thenReturn(resultObject);
 
         // when
         Object result = rabbitManager.sendRpcMessage(exchange, key, sendObject);
 
         // then
-        verify(rabbitTemplate).convertSendAndReceive(
+        verify(asyncRabbitTemplate).convertSendAndReceive(
             eq(exchange),
             eq(key),
-            messageCaptor.capture(),
-            any(CorrelationData.class));
+            messageCaptor.capture());
         TestObject sendMessage = messageCaptor.getValue();
         assertThat(sendMessage).isEqualTo(sendObject);
 
@@ -147,21 +163,20 @@ public class RabbitManagerTests {
         String exchange = "e";
         String key = "k";
         TestObject sendObject = new TestObject();
-
-        when(rabbitTemplate.convertSendAndReceive(eq(exchange), eq(key),
-            any(TestObject.class),
-            any(CorrelationData.class))
-        ).thenReturn(null);
+        
+        when(asyncRabbitTemplate.convertSendAndReceive(eq(exchange), eq(key),
+            any(TestObject.class))
+        ).thenReturn(future);
+        when(future.get()).thenReturn(null);
 
         // when
         Object result = rabbitManager.sendRpcMessage(exchange, key, sendObject);
 
         // then
-        verify(rabbitTemplate).convertSendAndReceive(
+        verify(asyncRabbitTemplate).convertSendAndReceive(
             eq(exchange),
             eq(key),
-            messageCaptor.capture(),
-            any(CorrelationData.class));
+            messageCaptor.capture());
         TestObject sendMessage = messageCaptor.getValue();
         assertThat(sendMessage).isEqualTo(sendObject);
 
