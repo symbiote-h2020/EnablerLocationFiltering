@@ -99,7 +99,7 @@ dependencies {
     //compile('com.github.symbiote-h2020:SymbIoTeLibraries:5.+') { changing = true }
     compile('com.github.symbiote-h2020:ResourceAccessProxyPlugin:0.3.1')
     
-    compileOnly('org.projectlombok:lombok')
+    //compileOnly('org.projectlombok:lombok')
 
     testCompile('org.springframework.boot:spring-boot-starter-test')
     testCompile('org.awaitility:awaitility:3.0.0')
