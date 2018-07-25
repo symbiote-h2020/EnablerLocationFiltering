@@ -159,6 +159,7 @@ jacocoTestReport {
 // including code quality extensions into the build
 check.dependsOn(jacocoTestReport)
 
+/*
 // integration tests
 task integrationTest(type: Test) {
     jacoco {
@@ -185,6 +186,7 @@ test {
         classDumpDir = file("$buildDir/build/classes/test")
     }
 }
+
 
 // integration test reporting
 task jacocoIntegrationTestReport(type: JacocoReport) {
@@ -231,6 +233,7 @@ check.dependsOn jacocoAllTestReport
 tasks.withType(Test) {
     reports.html.destination = file("${reporting.baseDir}/${name}")
 }
+*/
 
 
 /*
