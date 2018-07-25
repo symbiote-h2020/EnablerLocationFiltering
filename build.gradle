@@ -7,6 +7,7 @@ buildscript {
     }
     dependencies {
         classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath group: 'com.cinnober.gradle', name: 'semver-git', version: '2.3.1'
     }
 }
 
@@ -27,16 +28,16 @@ plugins {
     id "maven-publish"
 }
 
+if (!hasProperty('mainClass')) {
+    ext.mainClass = 'eu.h2020.symbiote.enablerlogic.SymbIoTeEnablerLogicApplication'
+}
+
+apply plugin: 'com.cinnober.gradle.semver-git'
+
 group = 'eu.h2020.symbiote'
-version = '0.0.1-SNAPSHOT'
 
 // this is needed for starter to not create fat jar
-bootRepackage.enabled = false
-
-jar {
-    baseName = 'enabler-logic-starter'
-    version =  project.version
-}
+//bootRepackage.enabled = false
 
 eclipse {
     classpath {
@@ -79,9 +80,6 @@ configurations.all {
     resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
-if (!hasProperty('mainClass')) {
-    ext.mainClass = 'eu.h2020.symbiote.enablerlogic.SymbIoTeEnablerLogicApplication'
-}
 
 dependencies {
     compile('org.springframework.boot:spring-boot-starter')
@@ -94,15 +92,18 @@ dependencies {
     compile('org.springframework.boot:spring-boot-starter-data-mongodb')
     compile("org.springframework.boot:spring-boot-starter-thymeleaf")
     compile("org.springframework.boot:spring-boot-devtools")
-
-    //compile('eu.h2020.symbiote:SymbIoTeLibraries:4.+') { changing = true }
-    //compile('com.github.symbiote-h2020:SymbIoTeLibraries:5.+') { changing = true }
-    compile('com.github.symbiote-h2020:ResourceAccessProxyPlugin:0.3.1')
+	compile('com.github.symbiote-h2020:SymbIoTeLibraries:5.14.+') { changing=true }
+	
+	// from jitpack
+	compile('com.github.symbiote-h2020:ResourceAccessProxyPlugin:0.3.1')
+	// from local maven
+    //compile('eu.h2020.symbiote:ResourceAccessProxyPlugin:0.1.0-SNAPSHOT')
     
-    //compileOnly('org.projectlombok:lombok')
+    compile('org.projectlombok:lombok')
 
     testCompile('org.springframework.boot:spring-boot-starter-test')
-    testCompile('org.awaitility:awaitility:3.0.0')
+	testCompile('org.assertj:assertj-core:3.10.0')
+    testCompile('org.awaitility:awaitility:3.1.0')
     testCompile('com.revinate:assertj-json:1.0.1')
     testCompile('io.arivera.oss:embedded-rabbitmq:1.1.2')
     testCompile('org.springframework.cloud:spring-cloud-contract-wiremock')
@@ -117,26 +118,51 @@ dependencyManagement {
     }
 }
 
+jar {
+    //baseName = rootProject.name
+    version =  project.version
+}
+
+bootRepackage {
+    classifier = 'run'
+}
+
 // creating source jar
 task sourceJar(type: Jar) {
     from sourceSets.main.allJava
-    baseName = 'enabler-logic-starter'
-    version =  project.version
+    //baseName = rootProject.name
+    //version =  project.version
     
+}
+
+task generateJavaDocs(type: Javadoc) {
+    source = sourceSets.main.allJava
+    classpath = project.sourceSets.main.compileClasspath 
+    destinationDir = reporting.file("javadocs")
+}
+
+task javadocJar(type: Jar, dependsOn: generateJavaDocs) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
 }
 
 publishing {
     publications {
         mavenJava(MavenPublication) {
+            groupId = project.group
+            version = project.version
             from components.java
             
             artifact sourceJar {
                 classifier "sources"
             }
+
+            artifact javadocJar
+
+			artifact(file("$libsDir/$project.name-$project.version-${bootRepackage.classifier}.jar")) {
+                classifier "run"
+            }
         }
-    }
-    repositories {
-        mavenLocal()
     }
 }
 
@@ -146,7 +172,7 @@ configurations.all {
 
 // jacoco configuration section
 jacoco {
-    toolVersion = "0.7.9"
+    toolVersion = "0.8.1"
 }
 
 jacocoTestReport {
@@ -159,14 +185,12 @@ jacocoTestReport {
 // including code quality extensions into the build
 check.dependsOn(jacocoTestReport)
 
-/*
 // integration tests
 task integrationTest(type: Test) {
-    jacoco {
-      destinationFile = file("$buildDir/jacoco/integrationTest.exec")
-      classDumpDir = file("$buildDir/build/classes/integrationTest")
-      includes = ["eu.*"]
-   }
+    //jacoco {
+      //destinationFile = file("$buildDir/jacoco/integrationTest.exec")
+      //classDumpDir = file("$buildDir/build/classes/main")
+   //}
 
     testClassesDir = sourceSets.integrationTest.output.classesDir
     classpath = sourceSets.integrationTest.runtimeClasspath
@@ -181,12 +205,11 @@ task allTestReport(type: TestReport) {
 }
 
 test {
-    jacoco {
-        destinationFile = file("$buildDir/jacoco/test.exec")
-        classDumpDir = file("$buildDir/build/classes/test")
-    }
+    //jacoco {
+       // destinationFile = file("$buildDir/jacoco/test.exec")
+        //classDumpDir = file("$buildDir/build/classes/main")
+    //}
 }
-
 
 // integration test reporting
 task jacocoIntegrationTestReport(type: JacocoReport) {
@@ -200,9 +223,8 @@ task jacocoIntegrationTestReport(type: JacocoReport) {
         html.destination = file("${buildDir}/reports/jacoco/integrationTest/html")
     }
  
-    executionData = files(["${buildDir}/jacoco/integrationTest.exec"])
-    classDirectories = files("$buildDir/classes/integrationTest", "$buildDir/classes/main")
-    sourceDirectories = sourceSets.main.allJava
+ 	executionData integrationTest
+ 	sourceSets sourceSets.main
 }
 
 jacocoIntegrationTestReport.dependsOn integrationTest
@@ -220,11 +242,8 @@ task jacocoAllTestReport(type: JacocoReport) {
         html.destination = file("${buildDir}/reports/jacoco/allTest/html")
     }
  
-    executionData = files([
-            "${buildDir}/jacoco/integrationTest.exec", 
-            "${buildDir}/jacoco/test.exec"])
-    classDirectories = files("$buildDir/classes/main", "$buildDir/classes/integrationTest", "$buildDir/classes/test", )
-    sourceDirectories = sourceSets.main.allJava
+ 	executionData test, integrationTest
+ 	sourceSets sourceSets.main
 }
 jacocoAllTestReport.dependsOn test, integrationTest
 check.dependsOn jacocoAllTestReport
@@ -233,7 +252,6 @@ check.dependsOn jacocoAllTestReport
 tasks.withType(Test) {
     reports.html.destination = file("${reporting.baseDir}/${name}")
 }
-*/
 
 
 /*
