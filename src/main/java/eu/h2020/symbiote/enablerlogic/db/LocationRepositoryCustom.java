@@ -15,11 +15,11 @@ import java.util.Optional;
 public interface LocationRepositoryCustom {
     public abstract Location save(Location location) throws Exception;
     
-    public abstract List<Location> getLocationChildren (String locationName) throws Exception;
+    public abstract List<Location> getLocationChildren (String locationName,String platformId) throws Exception;
     
-    public abstract List<Location> getLocationStructure();
+    public abstract List<Location> getLocationStructure(String platformId);
     
-    public abstract Optional<Location> findByLocationName(String locationName);
+    public abstract Optional<Location> findByLocationName(String locationName,String platformId);
     
     public abstract Optional<Location> updateParentId(int locationId, Integer parentId);
     

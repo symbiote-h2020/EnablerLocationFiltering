@@ -39,30 +39,7 @@ public class InterpolatorLogic implements ProcessingLogic {
     @Override
     public void initialization(EnablerLogic enablerLogic) {
         this.enablerLogic = enablerLogic;
-        insertDBFake();
-    }
-
-    private void sendQuery() {
-        ResourceManagerTaskInfoRequest request = new ResourceManagerTaskInfoRequest();
-        request.setTaskId("someId");
-        request.setEnablerLogicName("exampleEnabler");
-        request.setMinNoResources(1);
-        //request.setCachingInterval_ms(3600L);
-
-        CoreQueryRequest coreQueryRequest = new CoreQueryRequest();
-        /*coreQueryRequest.setLocation_lat(48.208174);
-        coreQueryRequest.setLocation_long(16.373819);
-        coreQueryRequest.setMax_distance(10_000); // radius 10km
-        coreQueryRequest.setObserved_property(Arrays.asList("NOx"));*/
-        coreQueryRequest.setPlatform_name("OpenIoTZg");
-        request.setCoreQueryRequest(coreQueryRequest);
-        ResourceManagerAcquisitionStartResponse response = enablerLogic.queryResourceManager(request);
-
-        try {
-            log.info("querying fixed resources: {}", new ObjectMapper().writeValueAsString(response));
-        } catch (JsonProcessingException e) {
-            log.error("Problem with deserializing ResourceManagerAcquisitionStartResponse", e);
-        }
+        //insertDBFake();
     }
 
     @Override
@@ -83,15 +60,5 @@ public class InterpolatorLogic implements ProcessingLogic {
     public void insertDBFake(){
         locationRepository.deleteAll();
         locationRepository.insertFake();
-        List<Location> locations;
-        try {
-            //locations = locationRepository.getLocationChildren("Location1");
-            //locations = locationRepository.getLocationChildren("Location3");
-            locations = locationRepository.getLocationStructure();
-            String b = ""; 
-        } catch (Exception ex) {
-            java.util.logging.Logger.getLogger(InterpolatorLogic.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        String a = ""; 
     }
 }

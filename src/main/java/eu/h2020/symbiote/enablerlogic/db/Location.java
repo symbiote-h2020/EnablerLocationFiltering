@@ -34,7 +34,7 @@ public class Location {
     @JsonProperty("locationAltitude")
     private double locationAltitude;
     
-    @JsonProperty("ParentId")
+    @JsonProperty("parentId")
     private Integer parentId;
     
     @JsonIgnore
@@ -43,6 +43,8 @@ public class Location {
     @JsonIgnore
     private List<Location> children;
     
+    @JsonProperty("platformId")
+    private String platformId;
     
     
     public Location() {
@@ -52,6 +54,7 @@ public class Location {
         this.locationLongitude = -1;
         this.locationAltitude = -1;
         this.parentId = null;
+        this.platformId = null;
     }
     
     @JsonCreator
@@ -60,13 +63,15 @@ public class Location {
             @JsonProperty("locationLatitude") double locationLatitude,
             @JsonProperty("locationLongitude") double locationLongitude,
             @JsonProperty("locationAltitude") double locationAltitude,
-            @JsonProperty("parentId") Integer parentId) {
+            @JsonProperty("parentId") Integer parentId,
+            @JsonProperty("platformId") String platformId) {
         this.id = id;
         this.locationName = locationName;
         this.locationLatitude = locationLatitude;
         this.locationLongitude = locationLongitude;
         this.locationAltitude = locationAltitude;
         this.parentId = parentId;
+        this.platformId = platformId;
     }
 
     @JsonProperty("id")
@@ -147,6 +152,16 @@ public class Location {
     @JsonIgnore
     public void setChildren(List<Location> children) {
         this.children = children;
+    }
+    
+    @JsonProperty("platformId")
+    public String getPlatformId() {
+        return this.platformId;
+    }
+
+    @JsonProperty("platformId")
+    public void setPlatformId(String platformId) {
+        this.platformId = platformId;
     }
     
     @Override

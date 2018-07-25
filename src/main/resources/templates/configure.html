@@ -4,7 +4,7 @@ To change this license header, choose License Headers in Project Properties.
 To change this template file, choose Tools | Templates
 and open the template in the editor.
 -->
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
     <head>
         <title>Configuration</title>
         <meta charset="UTF-8" />
@@ -16,6 +16,13 @@ and open the template in the editor.
         <!--<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous" />-->
 </head>
 <body>
+    <script th:inline="javascript">
+    /*<![CDATA[*/
+    var platformId = [[${platformId}]];
+    /*]]>*/
+    </script>
+    
+    
     <div id="body_body" style="height: 100%;width: 100%;padding: 15px;margin: 15px;">
         <div>
             <button onclick="getLocation()">Get all locations</button>
@@ -33,7 +40,7 @@ and open the template in the editor.
             $(document).ready(function () {
                 tree = $('#tree').tree({
                     uiLibrary: 'bootstrap',
-                    dataSource: '/Locations/Get',
+                    dataSource: '/Locations/Get?platformId='+platformId,
                     primaryKey: 'id',
                     dragAndDrop: true,
                     //checkboxes: true,
@@ -43,18 +50,22 @@ and open the template in the editor.
                 });
                 
                 tree.on('nodeDrop', function (e, id, parentId, orderNumber) {
+                    if(parentId == undefined)
+                        parentId = null;
                     var params = { id: id, parentId: parentId, orderNumber: orderNumber };
+                    console.log(params);
                     $.ajax({ url: '/Locations/ChangeNodePosition', data: params, method: 'POST' })
                         .fail(function () {
-                            alert('Failed to save.');
                             return false;
+                            alert('Failed to save');
+                            
                         });
                 });
             });
             
             function getLocation(){
                 attend();
-                $.ajax({ url: '/Locations/GetAll', method: 'GET' })
+                $.ajax({ url: '/Locations/GetAll', method: 'GET', data: {platformId:platformId} })
                         .done(function (response) {
                             tree.render(response);
                             attendRemove();
@@ -68,7 +79,7 @@ and open the template in the editor.
             function deleteLocation(){
                 attend();
                 var checkedIds = tree.getCheckedNodes();
-                var params = {ids: checkedIds};
+                var params = {ids: checkedIds,platformId:platformId};
                 $.ajax({ url: '/Locations/Delete', data: params, method: 'POST' })
                         .done(function (response) {
                             tree.render(response);

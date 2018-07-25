@@ -22,6 +22,7 @@ import static eu.h2020.symbiote.enablerlogic.logic.ConfigureController.createRes
 import eu.h2020.symbiote.enablerlogic.models.LocationGraphic;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
@@ -34,6 +35,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
@@ -77,38 +79,55 @@ public class RequestController {
     }
     */
     
-    @RequestMapping(value="/{locationName}", method=RequestMethod.GET)
-    public ResponseEntity<List<QueryResourceResult>> readResource(@PathVariable String locationName, HttpServletRequest request) throws Exception {
-        List<QueryResourceResult> qrrList = filterLocation(locationName);
+    @RequestMapping(value="", method=RequestMethod.GET)
+    public ResponseEntity<List<QueryResourceResult>> readResourceAll( 
+            @RequestParam(value = "locationName", required = false) String locationName,
+            @RequestParam(value = "platformId", required = true) String platformId,HttpServletRequest request) throws Exception {
+        List<QueryResourceResult> qrrList = filterLocation(locationName,platformId);
         return new ResponseEntity<List<QueryResourceResult>>(qrrList,HttpStatus.OK);
     }
     
+    /*
+    @RequestMapping(value="/{locationName}", method=RequestMethod.GET)
+    public ResponseEntity<List<QueryResourceResult>> readResource(@PathVariable String locationName, 
+            @RequestParam(value = "platformId", required = true) String platformId,HttpServletRequest request) throws Exception {
+        List<QueryResourceResult> qrrList = filterLocation(locationName,platformId);
+        return new ResponseEntity<List<QueryResourceResult>>(qrrList,HttpStatus.OK);
+    }
+    */
     
-    private List<QueryResourceResult> filterLocation(String locationName){
+    private List<QueryResourceResult> filterLocation(String locationName,String platformId){
         List<QueryResourceResult> qrrListResult = new ArrayList<>();
         List<String> locationNameAccepted = new ArrayList<>();
-        try {
-            List<Location> locationAccepted = locationRepository.getLocationChildren(locationName);
-            for(Location l : locationAccepted){
-                locationNameAccepted.add(l.getLocationName());
+        if(locationName != null && !locationName.equals("")){
+            try {
+                List<Location> locationAccepted = locationRepository.getLocationChildren(locationName,platformId);
+                for(Location l : locationAccepted){
+                    locationNameAccepted.add(l.getLocationName());
+                }
+            } catch (Exception ex) {
+                log.error(ex.toString(),ex);
+                Logger.getLogger(RequestController.class.getName()).log(Level.SEVERE, null, ex);
             }
-        } catch (Exception ex) {
-            log.error(ex.toString(),ex);
-            Logger.getLogger(RequestController.class.getName()).log(Level.SEVERE, null, ex);
         }
-        List<QueryResourceResult> qrrList = callResourceManager();
-        for(QueryResourceResult qrr: qrrList){
-            if(locationNameAccepted.contains(qrr.getLocationName()))
-                qrrListResult.add(qrr);
+        List<QueryResourceResult> qrrList = callResourceManager(platformId);
+        if(locationName != null && !locationName.equals("")){
+            for(QueryResourceResult qrr: qrrList){
+                if(locationNameAccepted.contains(qrr.getLocationName()))
+                    qrrListResult.add(qrr);
+            }
+        }
+        else{
+            qrrListResult = qrrList;
         }
         return qrrListResult;
     }
     
     
-    private List<QueryResourceResult> callResourceManager() {
+    private List<QueryResourceResult> callResourceManager(String platformId) {
         List<QueryResourceResult> qrr = new ArrayList<>();
-        String taskId = "someId";
-        ResourceManagerTaskInfoRequest request = ConfigureController.createResourceManagerTaskInfoRequest(taskId);
+        String taskId = UUID.randomUUID().toString();
+        ResourceManagerTaskInfoRequest request = ConfigureController.createResourceManagerTaskInfoRequest(taskId,platformId);
         
         ResourceManagerAcquisitionStartResponse response = enablerLogic.queryResourceManager(request);
 

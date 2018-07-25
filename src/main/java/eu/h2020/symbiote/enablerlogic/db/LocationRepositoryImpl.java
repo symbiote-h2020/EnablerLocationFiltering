@@ -28,7 +28,7 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
     
     @Override
     public Location save(Location location) throws Exception{
-        Optional<Location> locationOld = findByLocationName(location.getLocationName());
+        Optional<Location> locationOld = findByLocationName(location.getLocationName(),location.getPlatformId());
         if(locationOld != null && locationOld.isPresent())
             throw new Exception("Location already present with this name");
         if(location.getId() <= 0){
@@ -46,9 +46,9 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
     }
 
     @Override
-    public List<Location> getLocationChildren(String locationName) throws Exception{
+    public List<Location> getLocationChildren(String locationName,String platformId) throws Exception{
         List<Location> children;
-        Optional<Location> locationStartOptional = findByLocationName(locationName);
+        Optional<Location> locationStartOptional = findByLocationName(locationName,platformId);
         if(locationStartOptional == null || !locationStartOptional.isPresent())
             throw new Exception("Not exist Location with this name");
         
@@ -100,10 +100,11 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
     }
 
     @Override
-    public List<Location> getLocationStructure() {
+    public List<Location> getLocationStructure(String platformId) {
         List<Location> locationStarter;
         Query query = new Query();
         query.addCriteria(Criteria.where("parentId").is(null));
+        query.addCriteria(Criteria.where("platformId").is(platformId));
         locationStarter = mongoTemplate.find(query, Location.class);
         for(Location l: locationStarter){
             l = getLocationStructureRecursive(l);
@@ -123,10 +124,11 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
     }
 
     @Override
-    public Optional<Location> findByLocationName(String locationName) {
+    public Optional<Location> findByLocationName(String locationName,String platformId) {
         Optional<Location> locationOptional = null;
         Query query = new Query();
         query.addCriteria(Criteria.where("locationName").is(locationName));
+        query.addCriteria(Criteria.where("platformId").is(platformId));
         Location location = mongoTemplate.findOne(query, Location.class);
         if(location != null)
             locationOptional = Optional.of(location);
@@ -148,8 +150,8 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
 
     @Override
     public void insertFake() {
-        for(int i = 1;i<=5;i++){
-            Location l = new Location(0,"Location"+i,23.23,23.23,69.69,null);
+        /*for(int i = 1;i<=5;i++){
+            Location l = new Location(0,"Location"+i,23.23,23.23,69.69,null,"NXW-symphony-1");
             if(i==2 || i==3)
                 l.setParentId(1);
             if(i==4)
@@ -161,6 +163,19 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
             } catch (Exception ex) {
                 Logger.getLogger(LocationRepositoryImpl.class.getName()).log(Level.SEVERE, null, ex);
             }
+        }
+        */
+        Location l = new Location(0,"Pisa",43.6816,10.3531,1,null,"NXW-symphony-1");
+        try {
+            save(l);
+        } catch (Exception ex) {
+            Logger.getLogger(LocationRepositoryImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        Location l2 = new Location(0,"Viareggio",43.8625,10.2425,1,null,"NXW-symphony-1");
+        try {
+            save(l2);
+        } catch (Exception ex) {
+            Logger.getLogger(LocationRepositoryImpl.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
