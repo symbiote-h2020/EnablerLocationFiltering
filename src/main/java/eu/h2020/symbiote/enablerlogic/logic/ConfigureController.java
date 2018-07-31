@@ -82,6 +82,7 @@ public class ConfigureController {
     
     @RequestMapping(value = "/Locations/GetAll",method = RequestMethod.GET, produces = "application/json")
     public @ResponseBody List<LocationGraphic> LocationGetFromSSP(@RequestParam(value = "platformId", required = true) String platformId){
+        log.info("/Locations/GetAll platformId: "+platformId);
         addLocationOfSSP(platformId);
         return takeLocationGraphicFromDB(platformId);
     }
@@ -184,21 +185,25 @@ public class ConfigureController {
     }
     
     private void addLocationOfSSP(String platformId){
-        List<QueryResourceResult> qrrList = callResourceManager(platformId);
-        List<String> locationTake = new ArrayList<String>();
-        for(QueryResourceResult qrr: qrrList){
-            String locationName = qrr.getLocationName();
-            if(locationName != null && locationName != ""){
-                if(!locationTake.contains(locationName)){
-                    Optional<Location> lOpt = locationRepository.findByLocationName(locationName,platformId);
-                    if(lOpt == null || !lOpt.isPresent()){
-                        Location l = new Location(-1,qrr.getLocationName(),qrr.getLocationLatitude(),
-                                qrr.getLocationLongitude(), qrr.getLocationAltitude(), null, platformId);
-                        locationRepository.save(l);
+        try{
+            List<QueryResourceResult> qrrList = callResourceManager(platformId);
+            List<String> locationTake = new ArrayList<String>();
+            for(QueryResourceResult qrr: qrrList){
+                String locationName = qrr.getLocationName();
+                if(locationName != null && locationName != ""){
+                    if(!locationTake.contains(locationName)){
+                        Optional<Location> lOpt = locationRepository.findByLocationName(locationName,platformId);
+                        if(lOpt == null || !lOpt.isPresent()){
+                            Location l = new Location(-1,qrr.getLocationName(),qrr.getLocationLatitude(),
+                                    qrr.getLocationLongitude(), qrr.getLocationAltitude(), null, platformId);
+                            locationRepository.save(l);
+                        }
+                        locationTake.add(locationName);
                     }
-                    locationTake.add(locationName);
                 }
             }
+        }catch (Exception e) {
+            log.error("addLocationOfSSP ", e);
         }
     }
     

@@ -175,6 +175,7 @@ public class RequestController {
         List<QueryResourceResult> queryResourceResults = null;
         RestTemplate restTemplate = new RestTemplate();
         String ssp_url = sspUrl + "/innkeeper/public_resources";
+        log.info("callSSP sspUrl: "+sspUrl +" ,ssp: "+ssp);
         ResponseEntity<SspResource[]> responseEntity = null;
         try{
             HttpHeaders headers = new HttpHeaders();
@@ -244,8 +245,10 @@ public class RequestController {
             }
         } catch(RestClientResponseException e) {
             e.printStackTrace();
+            log.error("callSSP ", e);
         } catch (Exception e) {
             e.printStackTrace();
+            log.error("callSSP ", e);
         }
         return queryResourceResults;
     }
