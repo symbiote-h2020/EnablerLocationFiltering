@@ -40,7 +40,7 @@ and open the template in the editor.
             $(document).ready(function () {
                 tree = $('#tree').tree({
                     uiLibrary: 'bootstrap',
-                    dataSource: '/Locations/Get?platformId='+platformId,
+                    dataSource: getUrl('/Locations/Get?platformId='+platformId),
                     primaryKey: 'id',
                     dragAndDrop: true,
                     //checkboxes: true,
@@ -54,7 +54,7 @@ and open the template in the editor.
                         parentId = null;
                     var params = { id: id, parentId: parentId, orderNumber: orderNumber };
                     console.log(params);
-                    $.ajax({ url: '/Locations/ChangeNodePosition', data: params, method: 'POST' })
+                    $.ajax({ url: getUrl('/Locations/ChangeNodePosition'), data: params, method: 'POST' })
                         .fail(function () {
                             return false;
                             alert('Failed to save');
@@ -65,7 +65,7 @@ and open the template in the editor.
             
             function getLocation(){
                 attend();
-                $.ajax({ url: '/Locations/GetAll', method: 'GET', data: {platformId:platformId} })
+                $.ajax({ url: getUrl('/Locations/GetAll'), method: 'GET', data: {platformId:platformId} })
                         .done(function (response) {
                             tree.render(response);
                             attendRemove();
@@ -80,7 +80,7 @@ and open the template in the editor.
                 attend();
                 var checkedIds = tree.getCheckedNodes();
                 var params = {ids: checkedIds,platformId:platformId};
-                $.ajax({ url: '/Locations/Delete', data: params, method: 'POST' })
+                $.ajax({ url: getUrl('/Locations/Delete'), data: params, method: 'POST' })
                         .done(function (response) {
                             tree.render(response);
                             attendRemove();
@@ -89,6 +89,14 @@ and open the template in the editor.
                             alert('Failed to save.');
                             attendRemove();
                         });
+            }
+            
+            
+            function getUrl(lastPath){
+                var p= window.location.pathname;
+                var path = p.substring(0,p.indexOf('configure')-1) + lastPath;
+                var url = window.location.origin + path;
+                return url;
             }
             
             function attend() {

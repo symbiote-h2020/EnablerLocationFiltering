@@ -57,7 +57,7 @@ import org.springframework.web.client.RestTemplate;
  * @author Luca Tomaselli <l.tomaselli@nextworks.it>
  */
 @RestController
-@RequestMapping("locationFilter")
+@RequestMapping("enabler")
 public class RequestController {
     
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(RequestController.class);
@@ -98,7 +98,7 @@ public class RequestController {
     }
     */
     
-    @RequestMapping(value="", method=RequestMethod.GET)
+    @RequestMapping(value="locationFilter", method=RequestMethod.GET)
     public ResponseEntity<List<QueryResourceResult>> readResourceAll( 
             @RequestParam(value = "locationName", required = false) String locationName,
             @RequestParam(value = "platformId", required = true) String platformId,HttpServletRequest request) throws Exception {

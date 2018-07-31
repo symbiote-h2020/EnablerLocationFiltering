@@ -53,6 +53,7 @@ import org.springframework.web.servlet.ModelAndView;
  * @author Luca Tomaselli <l.tomaselli@nextworks.it>
  */
 @Controller
+@RequestMapping("enabler")
 public class ConfigureController {
     private static final Logger log = LoggerFactory.getLogger(ConfigureController.class);
     
