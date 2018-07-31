@@ -20,6 +20,14 @@ import eu.h2020.symbiote.enablerlogic.db.Location;
 import eu.h2020.symbiote.enablerlogic.db.LocationRepository;
 import static eu.h2020.symbiote.enablerlogic.logic.ConfigureController.createResourceManagerTaskInfoRequest;
 import eu.h2020.symbiote.enablerlogic.models.LocationGraphic;
+import eu.h2020.symbiote.enablerlogic.models.SspResource;
+import eu.h2020.symbiote.model.cim.Actuator;
+import eu.h2020.symbiote.model.cim.Device;
+import eu.h2020.symbiote.model.cim.Property;
+import eu.h2020.symbiote.model.cim.Resource;
+import eu.h2020.symbiote.model.cim.Sensor;
+import eu.h2020.symbiote.model.cim.Service;
+import eu.h2020.symbiote.model.cim.WGS84Location;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +36,10 @@ import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -37,6 +49,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -54,6 +67,12 @@ public class RequestController {
     
     @Autowired
     private LocationRepository locationRepository;
+    
+    @Value("${useSSP}")
+    public Boolean useSSP;
+    
+    @Value("${SSP.url}")
+    private String sspUrl;
     
     /*@RequestMapping(value="/{locationName}", method=RequestMethod.GET)
     public ResponseEntity<ResourceManagerAcquisitionStartResponse> readResource(@PathVariable String locationName, HttpServletRequest request) throws Exception {
@@ -125,6 +144,8 @@ public class RequestController {
     
     
     private List<QueryResourceResult> callResourceManager(String platformId) {
+        if(useSSP && platformId.equals("SSP_NXW_1"))
+            return callSSP(sspUrl,"SSP_NXW_1");
         List<QueryResourceResult> qrr = new ArrayList<>();
         String taskId = UUID.randomUUID().toString();
         ResourceManagerTaskInfoRequest request = ConfigureController.createResourceManagerTaskInfoRequest(taskId,platformId);
@@ -148,4 +169,84 @@ public class RequestController {
         return qrr;
     }
 
+    
+    public static List<QueryResourceResult> callSSP(String sspUrl, String ssp){
+        SspResource[] sspResources = null;
+        List<QueryResourceResult> queryResourceResults = null;
+        RestTemplate restTemplate = new RestTemplate();
+        String ssp_url = sspUrl + "/innkeeper/public_resources";
+        ResponseEntity<SspResource[]> responseEntity = null;
+        try{
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Accept", "application/json");
+            HttpEntity httpEntity = new HttpEntity(headers);
+
+            responseEntity = restTemplate.exchange(ssp_url, HttpMethod.GET, httpEntity, SspResource[].class);
+            sspResources = responseEntity.getBody();
+            if(sspResources != null){
+                queryResourceResults = new ArrayList<>();
+                for(SspResource sr: sspResources){
+                    QueryResourceResult qrr = new QueryResourceResult();
+                    Resource res = sr.getResource();
+                    
+                    Actuator actuator = null;
+                    if(res instanceof Actuator)
+                        actuator = (Actuator) res;
+                    Device device = null;
+                    if(res instanceof Device)
+                        device = (Device) res;
+                    Sensor sensor = null;
+                    if(res instanceof Sensor)
+                        sensor = (Sensor) res;
+                    Service service = null;
+                    if(res instanceof Service)
+                        service = (Service) res;
+                    
+                    qrr.setPlatformId("SSP_NXW_1");
+                    qrr.setPlatformName("SSP_NXW_1");
+                    qrr.setResourceType(sr.getResourceType());
+                    qrr.setDescription(String.join(", ",res.getDescription()));
+                    qrr.setId(res.getId());
+                    qrr.setName(res.getName());
+                    
+                    if(actuator != null)
+                        qrr.setCapabilities(actuator.getCapabilities());
+                    
+                    if(service != null)
+                        qrr.setInputParameters(service.getParameters());
+                    
+                    if(device != null){
+                        eu.h2020.symbiote.model.cim.Location location = device.getLocatedAt();
+                        if(location != null){
+                            qrr.setLocationAltitude(((WGS84Location)location).getAltitude());
+                            qrr.setLocationLatitude(((WGS84Location)location).getLatitude());
+                            qrr.setLocationLongitude(((WGS84Location)location).getLongitude());
+                            qrr.setLocationName(location.getName());
+                        }
+                    }
+                    
+                    if(sensor != null){
+                        List<String> observes = sensor.getObservesProperty();
+                        List<Property> properties = null;
+                        if(observes != null){
+                            properties = new ArrayList<>();
+                            for(String ob: observes){
+                                Property p = new Property(ob,null,null);
+                                properties.add(p);
+                            }
+                        }
+                        qrr.setObservedProperties(properties);
+                    }
+                    
+                    
+                    queryResourceResults.add(qrr);
+                }
+            }
+        } catch(RestClientResponseException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return queryResourceResults;
+    }
 }

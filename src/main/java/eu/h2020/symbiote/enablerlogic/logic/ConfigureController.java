@@ -17,6 +17,7 @@ import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerTaskInfoResponse
 import eu.h2020.symbiote.enablerlogic.EnablerLogic;
 import eu.h2020.symbiote.enablerlogic.db.Location;
 import eu.h2020.symbiote.enablerlogic.db.LocationRepository;
+import static eu.h2020.symbiote.enablerlogic.logic.RequestController.callSSP;
 import eu.h2020.symbiote.enablerlogic.models.LocationGraphic;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ import org.joda.time.format.PeriodFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -59,6 +61,12 @@ public class ConfigureController {
     
     @Autowired
     private LocationRepository locationRepository;
+    
+    @Value("${useSSP}")
+    public Boolean useSSP;
+    
+    @Value("${SSP.url}")
+    private String sspUrl;
     
     @RequestMapping("/configure")
     public ModelAndView Configure(@RequestParam(value = "platformId", required = true) String platformId){
@@ -150,6 +158,8 @@ public class ConfigureController {
     }
     
     private List<QueryResourceResult> callResourceManager(String platformId) {
+        if(useSSP && platformId.equals("SSP_NXW_1"))
+            return RequestController.callSSP(sspUrl,"SSP_NXW_1");
         List<QueryResourceResult> qrr = new ArrayList<>();
         String taskId = "someId";
         ResourceManagerTaskInfoRequest request = createResourceManagerTaskInfoRequest(taskId,platformId);
