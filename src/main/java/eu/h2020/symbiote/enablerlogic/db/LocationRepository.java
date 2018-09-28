@@ -19,7 +19,7 @@ public interface LocationRepository extends MongoRepository<Location, String>,Lo
     public Optional<Location> findById(int id);
     
 
-    public Optional<Location> findByLocationName(String locationName,String platformId);
+    public Optional<Location> findByLocationName(String locationName,List<String> platformId);
     
     @Override
     public List<Location> findAll();

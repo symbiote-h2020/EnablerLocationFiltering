@@ -17,9 +17,9 @@ import eu.h2020.symbiote.enabler.messaging.model.ResourceManagerTaskInfoResponse
 import eu.h2020.symbiote.enablerlogic.EnablerLogic;
 import eu.h2020.symbiote.enablerlogic.db.Location;
 import eu.h2020.symbiote.enablerlogic.db.LocationRepository;
-import static eu.h2020.symbiote.enablerlogic.logic.RequestController.callSSP;
 import eu.h2020.symbiote.enablerlogic.models.LocationGraphic;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.joda.time.DateTime;
@@ -70,21 +70,21 @@ public class ConfigureController {
     private String sspUrl;
     
     @RequestMapping("/configure")
-    public ModelAndView Configure(@RequestParam(value = "platformId", required = true) String platformId){
+    public ModelAndView Configure(@RequestParam(value = "platformId", required = true) List<String> platformId){
         ModelAndView modelAndView = new ModelAndView("configure");
         modelAndView.addObject("platformId", platformId);
         return modelAndView;
     }
     
     @RequestMapping(value = "/Locations/Get",method = RequestMethod.GET, produces = "application/json")
-    public @ResponseBody List<LocationGraphic> LocationGet(@RequestParam(value = "platformId", required = true) String platformId){
+    public @ResponseBody List<LocationGraphic> LocationGet(@RequestParam(value = "platformId", required = true) List<String> platformId){
         return takeLocationGraphicFromDB(platformId);
     }
     
     @RequestMapping(value = "/Locations/GetAll",method = RequestMethod.GET, produces = "application/json")
-    public @ResponseBody List<LocationGraphic> LocationGetFromSSP(@RequestParam(value = "platformId", required = true) String platformId){
+    public @ResponseBody List<LocationGraphic> LocationGetFromSSP(@RequestParam(value = "platformId", required = true) List<String> platformId){
         log.info("/Locations/GetAll platformId: "+platformId);
-        addLocationOfSSP(platformId);
+        addLocation(platformId);
         return takeLocationGraphicFromDB(platformId);
     }
     
@@ -98,7 +98,7 @@ public class ConfigureController {
     
 
     @RequestMapping(value = "/Locations/Delete",method = RequestMethod.POST, produces = "application/json")
-    public @ResponseBody List<LocationGraphic> LocationRemove(Integer[] ids,@RequestParam(value = "platformId", required = true) String platformId){
+    public @ResponseBody List<LocationGraphic> LocationRemove(Integer[] ids,@RequestParam(value = "platformId", required = true) List<String> platformId){
         for(int id : ids){
             //locationRepository.delete(id);
             String a = String.valueOf(id);
@@ -106,15 +106,19 @@ public class ConfigureController {
         return takeLocationGraphicFromDB(platformId);
     }
     
-    private List<LocationGraphic> takeLocationGraphicFromDB(String platformId){
+    private List<LocationGraphic> takeLocationGraphicFromDB(List<String> platformIdList){
         List<LocationGraphic> locationsGraphics = new ArrayList<LocationGraphic>();
-        List<Location> locations = locationRepository.getLocationStructure(platformId);
-        if(locations != null){
-            for(Location l : locations){
-                LocationGraphic lg = fromLocationToLocationGraphic(l);
-                locationsGraphics.add(lg);
+        
+        for (String platformId : platformIdList) {
+            List<Location> locations = locationRepository.getLocationStructure(platformId);
+            if(locations != null){
+                for(Location l : locations){
+                    LocationGraphic lg = fromLocationToLocationGraphic(l);
+                    locationsGraphics.add(lg);
+                }
             }
         }
+        
         return locationsGraphics;
     }
     
@@ -160,8 +164,8 @@ public class ConfigureController {
     }
     
     private List<QueryResourceResult> callResourceManager(String platformId) {
-        if(useSSP && platformId.equals("SSP_NXW_1"))
-            return RequestController.callSSP(sspUrl,"SSP_NXW_1");
+        //if(useSSP && platformId.equals("SSP_NXW_1"))
+            //return RequestController.callSSP(sspUrl,"SSP_NXW_1");
         List<QueryResourceResult> qrr = new ArrayList<>();
         String taskId = "someId";
         ResourceManagerTaskInfoRequest request = createResourceManagerTaskInfoRequest(taskId,platformId);
@@ -185,26 +189,43 @@ public class ConfigureController {
         return qrr;
     }
     
-    private void addLocationOfSSP(String platformId){
+    private void addLocation(List<String> platformIdList){
+        if(platformIdList != null){
+            for (String platformId : platformIdList) {
+                addLocation(platformId);
+            }
+        }
+    }
+    
+    private void addLocation(String platformId){
         try{
             List<QueryResourceResult> qrrList = callResourceManager(platformId);
-            List<String> locationTake = new ArrayList<String>();
-            for(QueryResourceResult qrr: qrrList){
-                String locationName = qrr.getLocationName();
-                if(locationName != null && locationName != ""){
-                    if(!locationTake.contains(locationName)){
-                        Optional<Location> lOpt = locationRepository.findByLocationName(locationName,platformId);
-                        if(lOpt == null || !lOpt.isPresent()){
-                            Location l = new Location(-1,qrr.getLocationName(),qrr.getLocationLatitude(),
-                                    qrr.getLocationLongitude(), qrr.getLocationAltitude(), null, platformId);
-                            locationRepository.save(l);
+            if(qrrList != null && !qrrList.isEmpty()){
+                try{
+                    locationRepository.deleteFromPlatformId(platformId);
+                }catch (Exception e) {
+                    log.error("addLocation deleteFromPlatformId ", e);
+                }
+                
+                List<String> locationTake = new ArrayList<String>();
+                for(QueryResourceResult qrr: qrrList){
+                    String locationName = qrr.getLocationName();
+                    if(locationName != null && locationName != ""){
+                        if(!locationTake.contains(locationName)){
+                            Optional<Location> lOpt = locationRepository.findByLocationName(locationName,
+                                    new ArrayList<>(Arrays.asList(platformId)));
+                            if(lOpt == null || !lOpt.isPresent()){
+                                Location l = new Location(-1,qrr.getLocationName(),qrr.getLocationLatitude(),
+                                        qrr.getLocationLongitude(), qrr.getLocationAltitude(), null, platformId);
+                                locationRepository.save(l);
+                            }
+                            locationTake.add(locationName);
                         }
-                        locationTake.add(locationName);
                     }
                 }
             }
         }catch (Exception e) {
-            log.error("addLocationOfSSP ", e);
+            log.error("addLocation ", e);
         }
     }
     

@@ -5,7 +5,9 @@
  */
 package eu.h2020.symbiote.enablerlogic.db;
 
+import com.mongodb.WriteResult;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -27,8 +29,17 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
     private MongoTemplate mongoTemplate;
     
     @Override
+    public Boolean deleteFromPlatformId(String platformId) {
+        List<Location> locations;
+        Query query = new Query();
+        query.addCriteria(Criteria.where("platformId").is(platformId));
+        WriteResult result = mongoTemplate.remove(query, Location.class);
+        return result.isUpdateOfExisting();
+    }
+    
+    @Override
     public Location save(Location location) throws Exception{
-        Optional<Location> locationOld = findByLocationName(location.getLocationName(),location.getPlatformId());
+        Optional<Location> locationOld = findByLocationName(location.getLocationName(),new ArrayList<>(Arrays.asList(location.getPlatformId())));
         if(locationOld != null && locationOld.isPresent())
             throw new Exception("Location already present with this name");
         if(location.getId() <= 0){
@@ -46,7 +57,7 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
     }
 
     @Override
-    public List<Location> getLocationChildren(String locationName,String platformId) throws Exception{
+    public List<Location> getLocationChildren(String locationName,List<String> platformId) throws Exception{
         List<Location> children;
         Optional<Location> locationStartOptional = findByLocationName(locationName,platformId);
         if(locationStartOptional == null || !locationStartOptional.isPresent())
@@ -124,11 +135,11 @@ public class LocationRepositoryImpl implements LocationRepositoryCustom{
     }
 
     @Override
-    public Optional<Location> findByLocationName(String locationName,String platformId) {
+    public Optional<Location> findByLocationName(String locationName,List<String> platformIdList) {
         Optional<Location> locationOptional = null;
         Query query = new Query();
         query.addCriteria(Criteria.where("locationName").is(locationName));
-        query.addCriteria(Criteria.where("platformId").is(platformId));
+        query.addCriteria(Criteria.where("platformId").in(platformIdList));
         Location location = mongoTemplate.findOne(query, Location.class);
         if(location != null)
             locationOptional = Optional.of(location);

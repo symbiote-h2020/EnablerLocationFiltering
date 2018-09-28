@@ -31,6 +31,10 @@ import eu.h2020.symbiote.model.cim.WGS84Location;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
@@ -74,53 +78,22 @@ public class RequestController {
     @Value("${SSP.url}")
     private String sspUrl;
     
-    /*@RequestMapping(value="/{locationName}", method=RequestMethod.GET)
-    public ResponseEntity<ResourceManagerAcquisitionStartResponse> readResource(@PathVariable String locationName, HttpServletRequest request) throws Exception {
-        HttpStatus httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
-        ResourceManagerTaskInfoRequest requestResourceManager = new ResourceManagerTaskInfoRequest();
-        requestResourceManager.setTaskId("someId");
-        requestResourceManager.setEnablerLogicName("exampleEnabler");
-        requestResourceManager.setMinNoResources(1);
-        //request.setCachingInterval_ms(3600L);
-
-        CoreQueryRequest coreQueryRequest = new CoreQueryRequest();
-        //coreQueryRequest.setLocation_lat(48.208174);
-        //coreQueryRequest.setLocation_long(16.373819);
-        //coreQueryRequest.setMax_distance(10_000); // radius 10km
-        //coreQueryRequest.setObserved_property(Arrays.asList("NOx"));
-        coreQueryRequest.setPlatform_name("OpenIoTZg");
-        requestResourceManager.setCoreQueryRequest(coreQueryRequest);
-        ResourceManagerAcquisitionStartResponse response = enablerLogic.queryResourceManager(requestResourceManager);
-        
-        if(response != null && response.getStatus().equals(ResourceManagerTasksStatus.SUCCESS))
-            httpStatus = HttpStatus.OK;
-        return new ResponseEntity<>(response,httpStatus);
-    }
-    */
     
     @RequestMapping(value="locationFilter", method=RequestMethod.GET)
     public ResponseEntity<List<QueryResourceResult>> readResourceAll( 
             @RequestParam(value = "locationName", required = false) String locationName,
-            @RequestParam(value = "platformId", required = true) String platformId,HttpServletRequest request) throws Exception {
+            @RequestParam(value = "platformId", required = true) List<String> platformId,HttpServletRequest request) throws Exception {
         List<QueryResourceResult> qrrList = filterLocation(locationName,platformId);
         return new ResponseEntity<List<QueryResourceResult>>(qrrList,HttpStatus.OK);
     }
     
-    /*
-    @RequestMapping(value="/{locationName}", method=RequestMethod.GET)
-    public ResponseEntity<List<QueryResourceResult>> readResource(@PathVariable String locationName, 
-            @RequestParam(value = "platformId", required = true) String platformId,HttpServletRequest request) throws Exception {
-        List<QueryResourceResult> qrrList = filterLocation(locationName,platformId);
-        return new ResponseEntity<List<QueryResourceResult>>(qrrList,HttpStatus.OK);
-    }
-    */
     
-    private List<QueryResourceResult> filterLocation(String locationName,String platformId){
+    private List<QueryResourceResult> filterLocation(String locationName,List<String> platformIdList){
         List<QueryResourceResult> qrrListResult = new ArrayList<>();
         List<String> locationNameAccepted = new ArrayList<>();
         if(locationName != null && !locationName.equals("")){
             try {
-                List<Location> locationAccepted = locationRepository.getLocationChildren(locationName,platformId);
+                List<Location> locationAccepted = locationRepository.getLocationChildren(locationName,platformIdList);
                 for(Location l : locationAccepted){
                     locationNameAccepted.add(l.getLocationName());
                 }
@@ -129,7 +102,16 @@ public class RequestController {
                 Logger.getLogger(RequestController.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        List<QueryResourceResult> qrrList = callResourceManager(platformId);
+        
+        /*
+        List<QueryResourceResult> qrrList = new ArrayList<>();
+        for(String platformId: platformIdList){
+            qrrList.addAll(callResourceManager(platformId));
+        }
+        */
+        List<QueryResourceResult> qrrList = callResourceManagerTask(platformIdList);
+        
+        
         if(locationName != null && !locationName.equals("")){
             for(QueryResourceResult qrr: qrrList){
                 if(locationNameAccepted.contains(qrr.getLocationName()))
@@ -143,9 +125,29 @@ public class RequestController {
     }
     
     
+    private List<QueryResourceResult> callResourceManagerTask(List<String> platformIdList){
+        List<QueryResourceResult> qrrList = new ArrayList<>();
+        try{
+            ExecutorService executor = Executors.newWorkStealingPool();
+            List<Callable<List<QueryResourceResult>>> callables = new ArrayList<>();
+            for(String platformId: platformIdList){
+                callables.add(new CallableTask(enablerLogic,platformId));
+            }
+            List<Future<List<QueryResourceResult>>> futures = executor.invokeAll(callables);
+            for (Future<List<QueryResourceResult>> futreQueryResList : futures)
+            {
+                qrrList.addAll(futreQueryResList.get());
+            }
+            executor.shutdown();
+            }
+        catch(Exception e)
+        {
+            Logger.getLogger(RequestController.class.getName()).log(Level.SEVERE, null, e);
+        }
+        return qrrList;
+    }
+    
     private List<QueryResourceResult> callResourceManager(String platformId) {
-        if(useSSP && platformId.equals("SSP_NXW_1"))
-            return callSSP(sspUrl,"SSP_NXW_1");
         List<QueryResourceResult> qrr = new ArrayList<>();
         String taskId = UUID.randomUUID().toString();
         ResourceManagerTaskInfoRequest request = ConfigureController.createResourceManagerTaskInfoRequest(taskId,platformId);
@@ -168,88 +170,46 @@ public class RequestController {
         }
         return qrr;
     }
-
     
-    public static List<QueryResourceResult> callSSP(String sspUrl, String ssp){
-        SspResource[] sspResources = null;
-        List<QueryResourceResult> queryResourceResults = null;
-        RestTemplate restTemplate = new RestTemplate();
-        String ssp_url = sspUrl + "/innkeeper/public_resources";
-        log.info("callSSP sspUrl: "+sspUrl +" ,ssp: "+ssp);
-        ResponseEntity<SspResource[]> responseEntity = null;
-        try{
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Accept", "application/json");
-            HttpEntity httpEntity = new HttpEntity(headers);
+    class CallableTask implements Callable<List<QueryResourceResult>>
+    {
+        String platformId;
+        EnablerLogic enablerLogic;
 
-            responseEntity = restTemplate.exchange(ssp_url, HttpMethod.GET, httpEntity, SspResource[].class);
-            sspResources = responseEntity.getBody();
-            if(sspResources != null){
-                queryResourceResults = new ArrayList<>();
-                for(SspResource sr: sspResources){
-                    QueryResourceResult qrr = new QueryResourceResult();
-                    Resource res = sr.getResource();
-                    
-                    Actuator actuator = null;
-                    if(res instanceof Actuator)
-                        actuator = (Actuator) res;
-                    Device device = null;
-                    if(res instanceof Device)
-                        device = (Device) res;
-                    Sensor sensor = null;
-                    if(res instanceof Sensor)
-                        sensor = (Sensor) res;
-                    Service service = null;
-                    if(res instanceof Service)
-                        service = (Service) res;
-                    
-                    qrr.setPlatformId("SSP_NXW_1");
-                    qrr.setPlatformName("SSP_NXW_1");
-                    qrr.setResourceType(sr.getResourceType());
-                    qrr.setDescription(String.join(", ",res.getDescription()));
-                    qrr.setId(res.getId());
-                    qrr.setName(res.getName());
-                    
-                    if(actuator != null)
-                        qrr.setCapabilities(actuator.getCapabilities());
-                    
-                    if(service != null)
-                        qrr.setInputParameters(service.getParameters());
-                    
-                    if(device != null){
-                        eu.h2020.symbiote.model.cim.Location location = device.getLocatedAt();
-                        if(location != null){
-                            qrr.setLocationAltitude(((WGS84Location)location).getAltitude());
-                            qrr.setLocationLatitude(((WGS84Location)location).getLatitude());
-                            qrr.setLocationLongitude(((WGS84Location)location).getLongitude());
-                            qrr.setLocationName(location.getName());
-                        }
-                    }
-                    
-                    if(sensor != null){
-                        List<String> observes = sensor.getObservesProperty();
-                        List<Property> properties = null;
-                        if(observes != null){
-                            properties = new ArrayList<>();
-                            for(String ob: observes){
-                                Property p = new Property(ob,null,null);
-                                properties.add(p);
-                            }
-                        }
-                        qrr.setObservedProperties(properties);
-                    }
-                    
-                    
-                    queryResourceResults.add(qrr);
+        public CallableTask(EnablerLogic enablerLogic, String platformId)
+        {
+            this.platformId = platformId;
+            this.enablerLogic = enablerLogic;
+        }
+
+        @Override
+        public List<QueryResourceResult> call() throws Exception
+        {
+            return callResourceManager(this.enablerLogic, this.platformId);
+        }
+        
+        private List<QueryResourceResult> callResourceManager(EnablerLogic enablerLogic, String platformId) {
+            List<QueryResourceResult> qrr = new ArrayList<>();
+            String taskId = UUID.randomUUID().toString();
+            ResourceManagerTaskInfoRequest request = ConfigureController.createResourceManagerTaskInfoRequest(taskId,platformId);
+
+            ResourceManagerAcquisitionStartResponse response = enablerLogic.queryResourceManager(request);
+
+            try {
+                log.info("querying fixed resources: {}", new ObjectMapper().writeValueAsString(response));
+            } catch (JsonProcessingException e) {
+                log.error("Problem with deserializing ResourceManagerAcquisitionStartResponse", e);
+            }
+
+            if(response != null){
+                String message = response.getMessage();
+                List<ResourceManagerTaskInfoResponse> infoResponseList = response.getTasks();
+                for(ResourceManagerTaskInfoResponse infoResponse: infoResponseList){
+                    if(infoResponse.getTaskId().equals(taskId))
+                        qrr = infoResponse.getResourceDescriptions();
                 }
             }
-        } catch(RestClientResponseException e) {
-            e.printStackTrace();
-            log.error("callSSP ", e);
-        } catch (Exception e) {
-            e.printStackTrace();
-            log.error("callSSP ", e);
+            return qrr;
         }
-        return queryResourceResults;
     }
 }

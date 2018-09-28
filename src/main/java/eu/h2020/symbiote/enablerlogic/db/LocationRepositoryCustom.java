@@ -13,13 +13,16 @@ import java.util.Optional;
  * @author Luca Tomaselli <l.tomaselli@nextworks.it>
  */
 public interface LocationRepositoryCustom {
+    
+    public Boolean deleteFromPlatformId(String platformId);
+    
     public abstract Location save(Location location) throws Exception;
     
-    public abstract List<Location> getLocationChildren (String locationName,String platformId) throws Exception;
+    public abstract List<Location> getLocationChildren (String locationName,List<String> platformId) throws Exception;
     
     public abstract List<Location> getLocationStructure(String platformId);
     
-    public abstract Optional<Location> findByLocationName(String locationName,String platformId);
+    public abstract Optional<Location> findByLocationName(String locationName,List<String> platformId);
     
     public abstract Optional<Location> updateParentId(int locationId, Integer parentId);
     
